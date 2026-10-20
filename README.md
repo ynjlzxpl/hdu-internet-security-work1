@@ -307,7 +307,7 @@ pip-audit -r requirements.txt
 Local results at the time of writing:
 
 ```
-Bandit:   No issues identified.  (0 medium, 0 high; 501 lines scanned)
+Bandit:   No issues identified.  (0 low, 0 medium, 0 high; 508 lines scanned)
 pip-audit: No known vulnerabilities found (12 dependencies audited)
 ```
 
@@ -321,7 +321,7 @@ pip-audit: No known vulnerabilities found (12 dependencies audited)
 
 The exact reports downloaded from the run are committed for review:
 
-* [`docs/ci/bandit-report.txt`](docs/ci/bandit-report.txt) — **No issues identified** (0 medium, 0 high; 501 lines scanned).
+* [`docs/ci/bandit-report.txt`](docs/ci/bandit-report.txt) — **No issues identified** (0 low, 0 medium, 0 high; 508 lines scanned).
 * [`docs/ci/pip-audit-summary.txt`](docs/ci/pip-audit-summary.txt) — **12 dependencies audited, 0 with known vulnerabilities**.
 * [`docs/ci/pip-audit-report.json`](docs/ci/pip-audit-report.json) — machine-readable SCA report.
 
@@ -332,7 +332,7 @@ The exact reports downloaded from the run are committed for review:
 Pipeline run and artifacts:
 
 * Workflow: [Actions → CI](https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/workflows/ci.yml)
-* Last successful run: [CI run #39351045197](https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39351045197) —
+* Last successful run: [CI run #39352597970](https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39352597970) —
   **Tests (pytest) ✅, SAST (Bandit) ✅, SCA (pip-audit) ✅**
 * Artifacts produced by the run: `coverage-report`, `bandit-report`,
   `pip-audit-report`.
@@ -359,4 +359,4 @@ Planned content (required by the assignment):
 
 * Public repository: <https://github.com/ynjlzxpl/hdu-internet-security-work1>
 * Last successful pipeline:
-  <https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39351045197>
+  <https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39352597970>
