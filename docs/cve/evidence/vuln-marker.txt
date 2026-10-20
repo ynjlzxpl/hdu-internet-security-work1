@@ -1,4 +1,1 @@
-
-
--rw-r----- 1 root root 0 Oct 20 02:21 /tmp/pwned_by_cve_2017_12615
-
+-rw-r--r-- 1 root root 0 Oct 20 03:25 /tmp/pwned_by_cve_2017_11610

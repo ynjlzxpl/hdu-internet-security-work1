@@ -1,11 +1,15 @@
-# Fixed environment for CVE-2017-12615 (Tomcat DefaultServlet PUT / JSP upload).
+# Fixed environment for CVE-2017-11610 (Supervisor XML-RPC object traversal).
 #
-# The vulnerable environment explicitly set DefaultServlet's readonly
-# initialisation parameter to "false". That override is intentionally NOT
-# present here: the secure default is readonly="true", which makes the
-# DefaultServlet reject PUT and DELETE requests.
-#
-# The base image is upgraded to Tomcat 8.5.23. That release fixes the related
-# CVE-2017-12617 (a bypass of the CVE-2017-12615 remediation affecting
-# 8.5.0-8.5.22), providing defence in depth even if PUT is enabled again.
-FROM tomcat:8.5.23-jre8
+# Supervisor 3.3.3 fixes the vulnerability by restricting XML-RPC method
+# resolution to exactly one namespace and one method, and by requiring the
+# resolved attribute to be a bound method. Arbitrary attribute traversal
+# (e.g. supervisord.options.warnings.linecache.os.system) is rejected.
+FROM python:2.7-slim
+
+RUN pip install --no-cache-dir supervisor==3.3.3
+
+COPY supervisord.conf /etc/supervisord.conf
+
+EXPOSE 9001
+
+CMD ["supervisord", "-c", "/etc/supervisord.conf"]

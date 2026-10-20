@@ -1,36 +1,39 @@
-# Fix for CVE-2017-12615 — Tomcat DefaultServlet PUT / JSP upload
+# Fix for CVE-2017-11610 — Supervisor XML-RPC remote command execution
 
 ## Vulnerability
 
-The vulnerable Vulhub environment (`vulhub/tomcat/CVE-2017-12615`) runs Apache
-Tomcat 8.5.19 and injects this insecure `DefaultServlet` setting into
-`conf/web.xml`:
+Supervisor before 3.0.1, 3.1.x before 3.1.4, 3.2.x before 3.2.4 and 3.3.x
+before 3.3.3 exposes an XML-RPC interface whose method dispatcher resolves
+dotted method names by walking arbitrary Python object attributes. An attacker
+can therefore invoke methods that were never meant to be exposed, for example:
 
-```xml
-<init-param>
-  <param-name>readonly</param-name>
-  <param-value>false</param-value>
-</init-param>
+```
+supervisor.supervisord.options.warnings.linecache.os.system
 ```
 
-With `readonly=false`, the `DefaultServlet` mapped to `/` accepts HTTP PUT.
-An unauthenticated attacker can upload a JSP file despite the servlet's
-`.jsp` suffix check by appending a trailing `/` to the request path
-(`PUT /shell.jsp/`). The operating system strips the trailing separator and
-writes `shell.jsp` into the web root; a later GET compiles and executes it,
-resulting in remote code execution as the Tomcat user (root in this image).
+`xmlrpc.traverse()` performed `getattr()` for every dotted component and then
+called the resolved object. This allowed traversal from the RPC namespace into
+`os.system`, so a crafted XML-RPC request executed arbitrary commands as the
+supervisord process (root in the container). NVD rates CVE-2017-11610
+**8.8 High** (CVSS 3.0) and classifies it as CWE-276 (incorrect default
+permissions) because the exposed interface was not restricted to the intended
+RPC methods.
 
 ## Applied fix
 
-1. **Version upgrade.** The base image is `tomcat:8.5.23-jre8`. Tomcat 8.5.23
-   fixes CVE-2017-12617, the bypass of the CVE-2017-12615 remediation
-   (affected 8.5.0–8.5.22).
-2. **Configuration fix.** The Dockerfile no longer inserts `readonly=false`,
-   so `DefaultServlet` keeps its secure default `readonly=true` and rejects
-   PUT/DELETE. This addresses the vulnerable configuration independently of
-   the version upgrade.
+`Dockerfile` installs **supervisor==3.3.3**, the release containing the
+upstream fix. In 3.3.3, `xmlrpc.traverse()` was changed to:
 
-See `diff.patch` for the exact change.
+* require exactly two dotted parts (`namespace.method`) — object traversal is
+  rejected;
+* reject method names beginning with `_`;
+* require the resolved attribute to be a bound method.
+
+Therefore the same request is answered with an XML-RPC `UNKNOWN_METHOD` fault
+and no command is executed. `diff.patch` shows the version change.
+
+Supervisor 3.x is Python 2 only (Python 3 support arrived in 4.0), so the
+image uses `python:2.7-slim`, matching the original Vulhub environment.
 
 ## Build and run
 
@@ -38,32 +41,24 @@ See `diff.patch` for the exact change.
 docker compose up -d --build
 ```
 
-The application is available at `http://127.0.0.1:8080/`.
+The web interface is available at `http://127.0.0.1:9001/`.
 
 ## Verify the fix
 
 ```bash
-# Same attack as the vulnerable environment: must be rejected
-curl -i -X PUT "http://127.0.0.1:8080/shell.jsp/" \
-     --data-binary "@shell.jsp" \
-     -H "Content-Type: application/octet-stream"
-# -> HTTP/1.1 403 Forbidden
+# The same request that created /tmp/rce_proof on 3.3.2:
+curl -i -X POST "http://127.0.0.1:9001/RPC2" \
+     -H "Content-Type: text/xml" \
+     --data-binary "@exploit.xml"
+# -> HTTP 200 with an XML-RPC fault: UNKNOWN_METHOD
 
-# No webshell was written
-curl -o /dev/null -w "%{http_code}\n" \
-     "http://127.0.0.1:8080/shell.jsp?cmd=id"
-# -> 404
+docker exec vulhub-fix-supervisor-1 ls -l /tmp/rce_proof
+# -> No such file or directory
 
-# Regression: normal functionality still works
-curl -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8080/"
-# -> 200
-curl -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8080/docs/"
-# -> 200
-```
+# Regression: interface and process management still work
+curl -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:9001/"     # 200
+docker exec vulhub-fix-supervisor-1 supervisorctl -c /etc/supervisord.conf status
+# -> demo RUNNING ...
 
-Expected server version and configuration:
-
-```
-Apache Tomcat/8.5.23
-no readonly init-param (secure default true)
+docker exec vulhub-fix-supervisor-1 supervisord --version           # 3.3.3
 ```

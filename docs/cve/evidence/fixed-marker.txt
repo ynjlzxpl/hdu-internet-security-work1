@@ -1,0 +1,2 @@
+ls: cannot access '/tmp/rce_proof': No such file or directory
+ls: cannot access '/tmp/pwned_by_cve_2017_11610': No such file or directory

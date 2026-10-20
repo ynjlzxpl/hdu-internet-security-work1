@@ -1,0 +1,21 @@
+HTTP/1.1 200 OK
+Date: Tue, 20 Oct 2026 03:28:14 GMT
+Content-Length: 269
+Content-Type: text/xml
+Server: Medusa/1.12
+
+<?xml version='1.0'?>
+<methodResponse>
+<fault>
+<value><struct>
+<member>
+<name>faultCode</name>
+<value><int>1</int></value>
+</member>
+<member>
+<name>faultString</name>
+<value><string>UNKNOWN_METHOD</string></value>
+</member>
+</struct></value>
+</fault>
+</methodResponse>
