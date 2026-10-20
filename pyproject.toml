@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+# Ensure the project root is importable when pytest is invoked from any
+# working directory (for example the bare `pytest` entry point in CI).
+pythonpath = ["."]
+testpaths = ["tests"]
