@@ -311,6 +311,24 @@ Bandit:   No issues identified.  (0 medium, 0 high; 501 lines scanned)
 pip-audit: No known vulnerabilities found (12 dependencies audited)
 ```
 
+### CI evidence
+
+![Successful CI run: Tests, SAST and SCA all green](docs/screenshots/ci-run-summary.png)
+
+| SAST job (Bandit) | SCA job (pip-audit) |
+|---|---|
+| ![SAST job steps all green](docs/screenshots/sast-bandit.png) | ![SCA job steps all green](docs/screenshots/sca-pip-audit.png) |
+
+The exact reports downloaded from the run are committed for review:
+
+* [`docs/ci/bandit-report.txt`](docs/ci/bandit-report.txt) — **No issues identified** (0 medium, 0 high; 501 lines scanned).
+* [`docs/ci/pip-audit-summary.txt`](docs/ci/pip-audit-summary.txt) — **12 dependencies audited, 0 with known vulnerabilities**.
+* [`docs/ci/pip-audit-report.json`](docs/ci/pip-audit-report.json) — machine-readable SCA report.
+
+> GitHub requires an authenticated session to render raw job logs, so the
+> screenshots show the public job status and step list; the verbatim report
+> contents are committed alongside them.
+
 Pipeline run and artifacts:
 
 * Workflow: [Actions → CI](https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/workflows/ci.yml)

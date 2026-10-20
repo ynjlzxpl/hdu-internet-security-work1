@@ -21,3 +21,10 @@ bandit-report.txt
 bandit-report.json
 pip-audit-report.json
 pip-audit-report.txt
+
+# CI scratch directory
+ci-artifacts/
+
+# Committed CI evidence (downloaded artifacts)
+!docs/ci/bandit-report.txt
+!docs/ci/pip-audit-report.json
