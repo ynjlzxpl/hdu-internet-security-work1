@@ -312,9 +312,14 @@ pip-audit: No known vulnerabilities found (12 dependencies audited)
 ```
 
 Pipeline run and artifacts:
-[Actions → CI](https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/workflows/ci.yml)
 
-<!-- CI screenshots will be added after the first successful run. -->
+* Workflow: [Actions → CI](https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/workflows/ci.yml)
+* Last successful run: [CI run #39351045197](https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39351045197) —
+  **Tests (pytest) ✅, SAST (Bandit) ✅, SCA (pip-audit) ✅**
+* Artifacts produced by the run: `coverage-report`, `bandit-report`,
+  `pip-audit-report`.
+
+<!-- Screenshots of the Actions reports are stored under docs/screenshots/. -->
 
 ## 8. CVE analysis with Vulhub
 
@@ -335,4 +340,5 @@ Planned content (required by the assignment):
 ## 9. Repository
 
 * Public repository: <https://github.com/ynjlzxpl/hdu-internet-security-work1>
-* Last successful pipeline: see the Actions tab link above.
+* Last successful pipeline:
+  <https://github.com/ynjlzxpl/hdu-internet-security-work1/actions/runs/39351045197>
