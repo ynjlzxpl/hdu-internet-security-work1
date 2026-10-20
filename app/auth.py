@@ -5,7 +5,13 @@ from flask import Blueprint, current_app, jsonify, request
 
 from .extensions import db
 from .models import User
-from .security import DUMMY_HASH, issue_token, login_limiter, verify_password
+from .security import (
+    AUTH_SCHEME,
+    DUMMY_HASH,
+    issue_token,
+    login_limiter,
+    verify_password,
+)
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -82,7 +88,7 @@ def login():
     return jsonify(
         {
             "access_token": token,
-            "token_type": "Bearer",
+            "token_type": AUTH_SCHEME,
             "expires_in": current_app.config["JWT_EXPIRES_SECONDS"],
         }
     )

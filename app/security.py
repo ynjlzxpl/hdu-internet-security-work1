@@ -15,6 +15,7 @@ from .extensions import db
 from .models import User
 
 BCRYPT_ROUNDS = 12
+AUTH_SCHEME = "Bearer"
 
 # A valid bcrypt hash used to equalise response time when the username does
 # not exist, so login timing does not reveal whether an account is registered.
