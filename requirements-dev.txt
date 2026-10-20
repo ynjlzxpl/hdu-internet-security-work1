@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# Test and security tooling
+bandit==1.9.4
+pip-audit==2.10.1
+pytest==9.1.1
+pytest-cov==7.1.0

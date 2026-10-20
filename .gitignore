@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+coverage.xml
+
+# Virtual environments
+.venv/
+venv/
+
+# Flask instance folder (contains the SQLite database)
+instance/
+
+# Local secrets
+.env
+
+# Security/CI report artifacts
+bandit-report.txt
+bandit-report.json
+pip-audit-report.json
+pip-audit-report.txt
